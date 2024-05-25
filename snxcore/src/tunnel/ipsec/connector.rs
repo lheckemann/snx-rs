@@ -1,10 +1,10 @@
 use std::{
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
     time::{Duration, SystemTime},
 };
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 use byteorder::{BigEndian, ReadBytesExt};
 use bytes::{Buf, Bytes};
@@ -73,9 +73,9 @@ impl IpsecTunnelConnector {
         };
 
         let socket = UdpSocket::bind("0.0.0.0:0").await?;
-        socket
-            .connect(format!("{}:{}", params.server_name, params.ike_port))
-            .await?;
+        let mut addr: SocketAddr = params.server_name.parse().context("Parsing server name")?;
+        addr.set_port(params.ike_port);
+        socket.connect(addr).await?;
 
         let gateway_address = match socket.peer_addr()?.ip() {
             IpAddr::V4(v4) => v4,

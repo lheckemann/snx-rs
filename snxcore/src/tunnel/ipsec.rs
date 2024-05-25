@@ -1,5 +1,5 @@
 use std::{
-    net::{IpAddr, ToSocketAddrs},
+    net::{IpAddr, SocketAddr, ToSocketAddrs},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use tokio::{net::UdpSocket, sync::mpsc, time::MissedTickBehavior};
 use tracing::debug;
 
@@ -43,13 +43,9 @@ impl IpsecTunnel {
         let client = CccHttpClient::new(params.clone(), Some(session.clone()));
         let client_settings = client.get_client_settings().await?;
 
-        let gateway_address = format!("{}:{}", params.server_name, params.ike_port)
-            .to_socket_addrs()?
-            .next()
-            .ok_or_else(|| anyhow!("No gateway address!"))?
-            .ip();
+        let address: SocketAddr = params.server_name.parse().context("failed to parse server name")?;
 
-        let ipv4address = match gateway_address {
+        let ipv4address = match address.ip() {
             IpAddr::V4(v4) => v4,
             _ => client_settings.gw_internal_ip,
         };
